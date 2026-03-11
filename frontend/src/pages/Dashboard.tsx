@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const BASE_URL = "http://localhost:5001";
+const BASE_URL = "https://gharpayy-upsa.onrender.com";
 
 const CHART_COLORS = [
   "hsl(217, 91%, 50%)",
