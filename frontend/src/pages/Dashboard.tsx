@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { getFollowUpLeads } from "@/lib/store"; // ← ADD THIS
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -28,7 +29,6 @@ interface DashboardData {
   visitsByOutcome: { outcome: string; count: number }[];
 }
 
-// Build dashboard data from leads array fetched from backend
 function buildDashboardFromLeads(leads: Lead[]): DashboardData {
   const leadsByStatus = PIPELINE_STAGES.map((s) => ({
     status: s.label,
@@ -43,7 +43,6 @@ function buildDashboardFromLeads(leads: Lead[]): DashboardData {
   return { leadsByStatus, visitsByOutcome };
 }
 
-// Map a raw DB row → Lead shape the UI expects
 function mapLead(row: any): Lead {
   return {
     id:            Number(row.id),
@@ -63,50 +62,47 @@ async function fetchAllLeads(): Promise<Lead[]> {
   const res = await fetch(`${BASE_URL}/leads`);
   if (!res.ok) throw new Error("Failed to fetch leads");
   const json = await res.json();
-  // backend returns { result: [...] }
   const rows: any[] = Array.isArray(json.result) ? json.result : [];
   return rows.map(mapLead);
 }
 
 async function fetchDashboardData(): Promise<DashboardData> {
-  // Try the /dashboard endpoint first (returns status counts)
   try {
     const res = await fetch(`${BASE_URL}/dashboard`);
     if (res.ok) {
       const json = await res.json();
-      // backend returns { result: [{ status, count }, ...] }
       const rows: { status: string; count: string }[] = Array.isArray(json.result) ? json.result : [];
-
       const leadsByStatus = rows
         .map((r) => ({ status: r.status, count: Number(r.count) }))
         .filter((r) => r.count > 0);
-
-      // /dashboard doesn't have visit breakdown — fetch leads for that
       const leads = await fetchAllLeads();
       const visitsByOutcome = [
         { outcome: "Scheduled", count: leads.filter((l) => l.stage === "visit_scheduled").length },
         { outcome: "Visited",   count: leads.filter((l) => l.stage === "visit_completed").length },
       ];
-
       return { leadsByStatus, visitsByOutcome };
     }
   } catch {
-    // fall through to full-leads fallback
+    // fall through
   }
-
-  // Fallback: build everything from /leads
   const leads = await fetchAllLeads();
   return buildDashboardFromLeads(leads);
 }
 
 const Dashboard = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [followUpLeads, setFollowUpLeads] = useState<Lead[]>([]); // ← ADD
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchAllLeads()
       .then(setLeads)
       .catch((err) => console.error("Failed to load leads:", err));
+
+    // ← ADD: fetch follow-up leads from backend
+    getFollowUpLeads()
+      .then(setFollowUpLeads)
+      .catch((err) => console.error("Failed to load follow-up leads:", err));
   }, []);
 
   const { data } = useQuery<DashboardData>({
@@ -115,16 +111,15 @@ const Dashboard = () => {
     refetchInterval: 30000,
   });
 
-  // While query is loading, build from already-fetched leads
   const dashboardData = data ?? buildDashboardFromLeads(leads);
 
   const recentLeads = [...leads]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10);
 
-  const totalLeads       = dashboardData.leadsByStatus.reduce((s, i) => s + i.count, 0);
-  const visitsScheduled  = dashboardData.visitsByOutcome.find((v) => v.outcome === "Scheduled")?.count ?? 0;
-  const bookings         = dashboardData.leadsByStatus.find((s) => s.status === "Booked")?.count ?? 0;
+  const totalLeads      = dashboardData.leadsByStatus.reduce((s, i) => s + i.count, 0);
+  const visitsScheduled = dashboardData.visitsByOutcome.find((v) => v.outcome === "Scheduled")?.count ?? 0;
+  const bookings        = dashboardData.leadsByStatus.find((s) => s.status === "Booked")?.count ?? 0;
 
   return (
     <div className="space-y-6">
@@ -133,17 +128,20 @@ const Dashboard = () => {
         <p className="text-sm text-muted-foreground">Overview of your lead pipeline</p>
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Stat cards — now 4, follow-ups added */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { label: "Total Leads",         value: totalLeads },
-          { label: "Visits Scheduled",    value: visitsScheduled },
-          { label: "Bookings Confirmed",  value: bookings },
+          { label: "Total Leads",        value: totalLeads },
+          { label: "Visits Scheduled",   value: visitsScheduled },
+          { label: "Bookings Confirmed", value: bookings },
+          { label: "Follow-ups Due",     value: followUpLeads.length, alert: followUpLeads.length > 0 }, // ← NEW
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className={s.alert ? "border-orange-400" : ""}>
             <CardContent className="pt-6">
               <p className="text-sm text-muted-foreground">{s.label}</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{s.value}</p>
+              <p className={`text-3xl font-bold mt-1 ${s.alert ? "text-orange-500" : "text-foreground"}`}>
+                {s.value}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -210,6 +208,55 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* ── FOLLOW-UP SECTION (NEW) ── */}
+      {followUpLeads.length > 0 && (
+        <Card className="border-orange-300">
+          <CardHeader className="pb-0">
+            <CardTitle className="text-sm font-semibold text-orange-500">
+              ⚠ Follow-ups Due ({followUpLeads.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left">
+                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Name</th>
+                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Phone</th>
+                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Stage</th>
+                    <th className="px-4 py-2.5 font-medium text-muted-foreground">Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {followUpLeads.map((lead) => {
+                    const stageInfo = PIPELINE_STAGES.find((s) => s.key === lead.stage);
+                    return (
+                      <tr
+                        key={lead.id}
+                        className="border-b border-border last:border-0 hover:bg-orange-50/10 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/leads?lead=${lead.id}`)}
+                      >
+                        <td className="px-4 py-2.5 font-medium text-foreground">{lead.name}</td>
+                        <td className="px-4 py-2.5 text-muted-foreground">{lead.phone}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-2 w-2 rounded-full ${stageInfo?.color}`} />
+                            <span className="text-xs">{stageInfo?.label}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground text-xs">
+                          {formatDistanceToNow(new Date(lead.updatedAt), { addSuffix: true })}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent leads table */}
       <Card>
