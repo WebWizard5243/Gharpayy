@@ -1,6 +1,6 @@
 import { Lead, LeadSource, PipelineStage, Agent, Property, BACKEND_TO_STAGE, STAGE_TO_BACKEND } from "./types";
 
-const API_URL = "http://localhost:5001";
+const API_URL = "https://gharpayy-upsa.onrender.com";
 
 
 
