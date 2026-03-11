@@ -11,7 +11,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { Lead, Agent } from "@/lib/types";
 
-const API_URL = "http://localhost:5001";
+const API_URL = "https://gharpayy-upsa.onrender.com";
 
 interface VisitRow {
   id: number;
