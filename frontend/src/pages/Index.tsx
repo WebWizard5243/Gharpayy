@@ -6,10 +6,51 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 import { LeadCaptureForm } from "@/components/LeadCaptureForm";
 import { LeadDetailPanel } from "@/components/LeadDetailPanel";
 import { Building2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// ── Skeleton loaders ─────────────────────────────────────────────────────────
+
+const AnalyticsBarSkeleton = () => (
+  <div className="flex gap-3 overflow-x-auto pb-1">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex-shrink-0 rounded-lg border border-border bg-card p-3 w-36 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-6 w-10" />
+      </div>
+    ))}
+  </div>
+);
+
+const KanbanBoardSkeleton = () => (
+  <div className="flex gap-3 overflow-x-auto pb-2">
+    {[...Array(4)].map((_, col) => (
+      <div key={col} className="flex-shrink-0 w-64 rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+        {/* Column header */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-5 w-6 rounded-full" />
+        </div>
+        {/* Cards */}
+        {[...Array(3)].map((_, card) => (
+          <div key={card} className="rounded-lg border border-border bg-card p-3 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+            <div className="flex gap-2 pt-1">
+              <Skeleton className="h-5 w-14 rounded-full" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+    ))}
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Index = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
-
+  const [loading, setLoading] = useState(true);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   const refresh = useCallback(async () => {
@@ -23,7 +64,7 @@ const Index = () => {
 
   // Load leads on mount
   useEffect(() => {
-    refresh();
+    refresh().finally(() => setLoading(false));
   }, [refresh]);
 
   const handleMoveStage = (leadId: number, stage: PipelineStage) => {
@@ -33,7 +74,6 @@ const Index = () => {
   };
 
   const handleLeadClick = (lead: Lead) => {
-    // Re-read from current leads state to get latest data
     const fresh = leads.find((l) => l.id === lead.id) || lead;
     setSelectedLead(fresh);
   };
@@ -58,8 +98,17 @@ const Index = () => {
 
       {/* Content */}
       <main className="px-4 py-4 md:px-6 space-y-4">
-        <AnalyticsBar leads={leads} />
-        <KanbanBoard leads={leads} onLeadClick={handleLeadClick} onMoveStage={handleMoveStage} />
+        {loading ? (
+          <>
+            <AnalyticsBarSkeleton />
+            <KanbanBoardSkeleton />
+          </>
+        ) : (
+          <>
+            <AnalyticsBar leads={leads} />
+            <KanbanBoard leads={leads} onLeadClick={handleLeadClick} onMoveStage={handleMoveStage} />
+          </>
+        )}
       </main>
 
       {/* Detail Panel */}
