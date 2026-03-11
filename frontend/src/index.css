@@ -1,0 +1,73 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 20% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 20% 10%;
+
+    --muted: 210 15% 95%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 217 40% 94%;
+    --accent-foreground: 217 91% 40%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 20% 90%;
+    --input: 214 20% 90%;
+    --ring: 217 91% 50%;
+
+    --radius: 0.5rem;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 20% 10%;
+    --sidebar-primary: 217 91% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 40% 94%;
+    --sidebar-accent-foreground: 217 91% 40%;
+    --sidebar-border: 214 20% 90%;
+    --sidebar-ring: 217 91% 50%;
+
+    --kanban-new: 210 100% 56%;
+    --kanban-contacted: 262 83% 58%;
+    --kanban-requirement: 38 92% 50%;
+    --kanban-suggested: 20 90% 48%;
+    --kanban-scheduled: 168 60% 38%;
+    --kanban-completed: 142 71% 45%;
+    --kanban-booked: 168 80% 30%;
+    --kanban-lost: 0 72% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'DM Sans', sans-serif;
+  }
+}
