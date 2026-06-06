@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model agents {
+  id     Int      @id @default(autoincrement())
+  name   String?
+  email  String?
+  active Boolean? @default(true)
+  visits visits[]
+}
+
+model leads {
+  id                Int       @id @default(autoincrement())
+  name              String?
+  phone             String?
+  source            String?
+  status            String?   @default("New Lead")
+  assigned_agent_id Int?
+  created_at        DateTime? @default(now()) @db.Timestamp(6)
+  location          String?
+  visits            visits[]
+}
+
+model properties {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(100)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model visits {
+  id            Int       @id @default(autoincrement())
+  lead_id       Int?
+  property_name String?
+  visit_time    DateTime? @db.Timestamp(6)
+  outcome       String?
+  agent_id      Int?
+  agents        agents?   @relation(fields: [agent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  leads         leads?    @relation(fields: [lead_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}

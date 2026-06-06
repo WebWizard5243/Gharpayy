@@ -1,35 +1,43 @@
-import { Lead, LeadSource, PipelineStage, Agent, Property, BACKEND_TO_STAGE, STAGE_TO_BACKEND } from "./types";
+import {
+  Lead,
+  LeadSource,
+  PipelineStage,
+  Agent,
+  Property,
+  BACKEND_TO_STAGE,
+  STAGE_TO_BACKEND,
+} from "./types";
 
-const API_URL = "https://gharpayy-upsa.onrender.com";
-
-
+const API_URL = window.location.hostname === "localhost"
+  ? "http://localhost:5001"
+  : "https://gharpayy-upsa.onrender.com";
 
 function mapLead(row: any): Lead {
   return {
-    id:            Number(row.id),
-    name:          row.name,
-    phone:         row.phone,
-    source:        row.source as LeadSource,
-    stage:         BACKEND_TO_STAGE[row.status] ?? "new_lead",
+    id: Number(row.id),
+    name: row.name,
+    phone: row.phone,
+    source: row.source as LeadSource,
+    stage: BACKEND_TO_STAGE[row.status] ?? "new_lead",
     assignedAgent: row.assigned_agent_id ? String(row.assigned_agent_id) : "—",
-    createdAt:     row.created_at ?? row.createdAt,
-    updatedAt:     row.updated_at ?? row.created_at ?? row.createdAt,
-    visits:        [],
-    notes:         row.notes ?? "",
-    location:      row.location ?? "",
+    createdAt: row.created_at ?? row.createdAt,
+    updatedAt: row.updated_at ?? row.created_at ?? row.createdAt,
+    visits: [],
+    notes: row.notes ?? "",
+    location: row.location ?? "",
   };
 }
 
 function mapAgent(row: any): Agent {
   return {
-    id:        Number(row.id),
-    name:      row.name,
-    active:    row.active ?? true,
+    id: Number(row.id),
+    name: row.name,
+    active: row.active ?? true,
     createdAt: row.created_at ?? row.createdAt ?? "",
   };
 }
 
-// GET /leads 
+// GET /leads
 export async function getLeads(): Promise<Lead[]> {
   const res = await fetch(`${API_URL}/leads`);
   if (!res.ok) throw new Error("Failed to fetch leads");
@@ -50,12 +58,12 @@ export async function addLead(data: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      name:      data.name,
-      phone:     data.phone,
-      source:    data.source,
-      status:    "New Lead",
+      name: data.name,
+      phone: data.phone,
+      source: data.source,
+      status: "New Lead",
       createdAt: new Date().toISOString(),
-      location:  data.location ?? "",
+      location: data.location ?? "",
       // only send agentId if manually selected — otherwise backend round-robin handles it
       ...(data.agentId ? { agentId: data.agentId } : {}),
     }),
@@ -66,7 +74,7 @@ export async function addLead(data: {
   return mapLead(json.data);
 }
 
-// PATCH /leads/:id 
+// PATCH /leads/:id
 export async function updateLeadStage(id: number, stage: PipelineStage) {
   const res = await fetch(`${API_URL}/leads/${id}`, {
     method: "PATCH",
@@ -79,7 +87,7 @@ export async function updateLeadStage(id: number, stage: PipelineStage) {
   if (!res.ok) throw new Error("Failed to update lead stage");
 }
 
-// GET /leads/followup 
+// GET /leads/followup
 export async function getFollowUpLeads(): Promise<Lead[]> {
   const res = await fetch(`${API_URL}/leads/followup`);
   if (res.status === 404) return []; // backend returns 404 when none found
@@ -89,8 +97,21 @@ export async function getFollowUpLeads(): Promise<Lead[]> {
   return rows.map(mapLead);
 }
 
+// GET /api/init — combined call for dashboard
+export async function getDashboardInit() {
+  const res = await fetch(`${API_URL}/api/init`);
+  if (!res.ok) throw new Error("Failed to fetch init data");
+  const json = await res.json();
+  const data = json.result;
+  return {
+    leads: (data.leads ?? []).map(mapLead),
+    followUpLeads: (data.followUpLeads ?? []).map(mapLead),
+    dashboard: data.dashboard ?? [],
+    agents: data.agents ?? [],
+  };
+}
 
-// POST /visits 
+// POST /visits
 export async function addVisitToLead(
   leadId: number,
   agentId: number,
@@ -99,17 +120,17 @@ export async function addVisitToLead(
     date: string;
     time: string;
     outcome: string;
-  }
+  },
 ) {
   const res = await fetch(`${API_URL}/visits`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      leadId:       leadId,
-      agentId:      agentId,
+      leadId: leadId,
+      agentId: agentId,
       propertyName: visit.propertyName,
-      visitTime:    `${visit.date}T${visit.time}`,
-      outcome:      visit.outcome,
+      visitTime: `${visit.date}T${visit.time}`,
+      outcome: visit.outcome,
     }),
   });
   if (!res.ok) throw new Error("Failed to add visit");
@@ -117,15 +138,13 @@ export async function addVisitToLead(
   return json.result?.[0] ?? null;
 }
 
-// GET /visits 
+// GET /visits
 export async function getVisits() {
   const res = await fetch(`${API_URL}/visits`);
   if (!res.ok) throw new Error("Failed to fetch visits");
   const json = await res.json();
   return Array.isArray(json.result) ? json.result : [];
 }
-
-
 
 export function needsFollowUp(lead: Lead): boolean {
   const lastUpdate = new Date(lead.updatedAt).getTime();
@@ -137,20 +156,25 @@ export function needsFollowUp(lead: Lead): boolean {
   );
 }
 
-
-
-// GET /agents 
+// GET /agents
 export async function getAgents(): Promise<Agent[]> {
   const res = await fetch(`${API_URL}/agents`);
   if (!res.ok) throw new Error("Failed to fetch agents");
   const json = await res.json();
   // handle both { result: [...] } and plain array
-  const rows: any[] = Array.isArray(json) ? json : Array.isArray(json.result) ? json.result : [];
+  const rows: any[] = Array.isArray(json)
+    ? json
+    : Array.isArray(json.result)
+      ? json.result
+      : [];
   return rows.map(mapAgent);
 }
 
-// POST /agents 
-export async function addAgent(name: string, email: string = ""): Promise<Agent> {
+// POST /agents
+export async function addAgent(
+  name: string,
+  email: string = "",
+): Promise<Agent> {
   const res = await fetch(`${API_URL}/agents`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -172,7 +196,7 @@ export async function toggleAgentActive(id: number) {
   return mapAgent(json.data);
 }
 
-// DELETE /agents/:id 
+// DELETE /agents/:id
 export async function deleteAgent(id: number) {
   const res = await fetch(`${API_URL}/agents/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error("Failed to delete agent");
@@ -190,10 +214,14 @@ export async function getProperties(): Promise<Property[]> {
     const res = await fetch(`${API_URL}/properties`);
     if (!res.ok) return [];
     const json = await res.json();
-    const rows: any[] = Array.isArray(json) ? json : Array.isArray(json.result) ? json.result : [];
+    const rows: any[] = Array.isArray(json)
+      ? json
+      : Array.isArray(json.result)
+        ? json.result
+        : [];
     return rows.map((r: any) => ({
-      id:        Number(r.id),
-      name:      r.name,
+      id: Number(r.id),
+      name: r.name,
       createdAt: r.created_at ?? "",
     }));
   } catch {
