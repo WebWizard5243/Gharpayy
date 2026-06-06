@@ -1,7 +1,7 @@
 import express, { response } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { PrismaClient } from "@prisma/client";
+import pkg from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Redis } from "@upstash/redis";
@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 const adapter = new PrismaPg(pool);
-
+const { PrismaClient } = pkg;
 const prisma = new PrismaClient({
   adapter,
 });
