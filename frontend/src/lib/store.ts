@@ -99,7 +99,7 @@ export async function getFollowUpLeads(): Promise<Lead[]> {
 
 // GET /api/init — combined call for dashboard
 export async function getDashboardInit() {
-  const res = await fetch(`${API_URL}/api/init`);
+  const res = await fetch(`${API_URL}/init`);
   if (!res.ok) throw new Error("Failed to fetch init data");
   const json = await res.json();
   const data = json.result;

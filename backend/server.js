@@ -25,6 +25,12 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.url.startsWith("/api/")) {
+    req.url = req.url.slice(4);
+  }
+  next();
+});
 
 async function cached(key, ttlseconds, queryFn) {
   const hit = await redis.get(key);
@@ -353,7 +359,7 @@ app.delete("/properties/:id", async (req, res) => {
 
 // ── COMBINED INIT (single call for dashboard) ────────────────────────────────
 
-app.get("/api/init", async (req, res) => {
+app.get("/init", async (req, res) => {
   try {
     const data = await cached("init:dashboard", 1800, async () => {
       // run all queries in parallel instead of one by one
@@ -391,4 +397,4 @@ app.get("/api/init", async (req, res) => {
 //   console.log(`this server is running on port ${PORT}`);
 // });
 
-module.exports = app;
+export default app;
