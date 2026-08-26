@@ -19,8 +19,8 @@
       "dest": "/backend/server.js"
     },
     {
-      "src": "/(.*)",
-      "handle": "filesystem"
+      "src": "/(.*\\.(?:js|css|png|jpg|jpeg|svg|ico|woff2?|ttf|map))",
+      "dest": "/frontend/dist/$1"
     },
     {
       "src": "/(.*)",
