@@ -6,7 +6,7 @@ dotenv.config()
 const {Pool} = pg
 
 const db = new Pool({
-    connectionString : process.env.NEON_DATABASE_STRING,
+    connectionString : process.env.DATABASE_URL,
     ssl: { 
     rejectUnauthorized: false 
   }

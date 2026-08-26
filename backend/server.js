@@ -387,6 +387,8 @@ app.get("/api/init", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`this server is running on port ${PORT}`);
-});
+// app.listen(PORT, () => {
+//   console.log(`this server is running on port ${PORT}`);
+// });
+
+module.exports = app;
