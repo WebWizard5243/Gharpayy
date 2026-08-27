@@ -21,6 +21,16 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+let isRedisConnected = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+
+// Quick check on startup so requests don't wait for DNS timeout
+if (isRedisConnected) {
+  redis.get("ping").catch((err) => {
+    console.warn("Upstash Redis unreachable, falling back to database directly:", err.message);
+    isRedisConnected = false;
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 5001;
 app.use(cors());
@@ -33,19 +43,40 @@ app.use((req, res, next) => {
 });
 
 async function cached(key, ttlseconds, queryFn) {
-  const hit = await redis.get(key);
-
-  if (hit) {
-    console.log(`Cache hit for ${key}`);
-    return hit;
+  if (isRedisConnected) {
+    try {
+      const hit = await redis.get(key);
+      if (hit) {
+        console.log(`Cache hit for ${key}`);
+        return hit;
+      }
+    } catch (err) {
+      console.warn(`Redis get failed for ${key}, falling back to database:`, err.message);
+      isRedisConnected = false;
+    }
   }
 
   console.log(`Cache miss for ${key}`);
   const data = await queryFn();
 
-  await redis.set(key, JSON.stringify(data), { ex: ttlseconds });
+  if (isRedisConnected) {
+    try {
+      await redis.set(key, JSON.stringify(data), { ex: ttlseconds });
+    } catch (err) {
+      console.warn(`Redis set failed for ${key}:`, err.message);
+    }
+  }
 
   return data;
+}
+
+async function clearCache(...keys) {
+  if (!isRedisConnected) return;
+  try {
+    await redis.del(...keys);
+  } catch (err) {
+    console.warn("Redis del failed:", err.message);
+  }
 }
 
 app.post("/newLeads", async (req, res) => {
@@ -83,7 +114,7 @@ app.post("/newLeads", async (req, res) => {
         location,
       },
     });
-    await redis.del("leads:all", "dashboard:stats", "init:dashboard");
+    await clearCache("leads:all", "dashboard:stats", "init:dashboard");
     res.status(201).json({
       message: "Lead Added Successfully",
       data: lead,
@@ -120,7 +151,7 @@ app.patch("/leads/:id", async (req, res) => {
         ...(agentId !== undefined && { assigned_agent_id: agentId }),
       },
     });
-    await redis.del("leads:all", "dashboard:stats", "init:dashboard");
+    await clearCache("leads:all", "dashboard:stats", "init:dashboard");
     res.status(200).json({ message: "fields updated succesfully" });
   } catch (error) {
     if (error.code === "P2025") {
@@ -143,7 +174,7 @@ app.post("/visits", async (req, res) => {
         agent_id: agentId,
       },
     });
-    await redis.del("visits:all");
+    await clearCache("visits:all");
 
     res.status(201).json({ result: [visit] });
   } catch (error) {
@@ -188,7 +219,7 @@ app.patch("/visits/:id", async (req, res) => {
       where: { id: parseInt(id) },
       data: { outcome },
     });
-    await redis.del("visits:all");
+    await clearCache("visits:all");
     res.status(200).json({ message: "Outcome updated", data: visit });
   } catch (error) {
     if (error.code === "P2025") {
@@ -244,7 +275,7 @@ app.post("/agents", async (req, res) => {
     const agent = await prisma.agents.create({
       data: { name, email },
     });
-    await redis.del("agents:all", "init:dashboard");
+    await clearCache("agents:all", "init:dashboard");
     res.status(201).json({ result: [agent] });
   } catch (error) {
     console.error("error message:", error.message);
@@ -268,7 +299,7 @@ app.patch("/agents/:id/toggle", async (req, res) => {
       where: { id },
       data: { active: !current.active },
     });
-    await redis.del("agents:all", "init:dashboard");
+    await clearCache("agents:all", "init:dashboard");
 
     res.status(200).json({
       message: "Agent status toggled",
@@ -305,7 +336,7 @@ app.delete("/agents/:id", async (req, res) => {
     const agent = await prisma.agents.delete({
       where: { id },
     });
-    await redis.del("agents:all", "init:dashboard");
+    await clearCache("agents:all", "init:dashboard");
     res.status(200).json({ result: [agent] });
   } catch (error) {
     if (error.code === "P2025") {
@@ -332,7 +363,7 @@ app.post("/properties", async (req, res) => {
   const { name } = req.body;
   try {
     const property = await prisma.properties.create({ data: { name } });
-    await redis.del("properties:all");
+    await clearCache("properties:all");
     res.status(201).json({ result: [property] });
   } catch (error) {
     console.error("error message:", error.message);
@@ -346,7 +377,7 @@ app.delete("/properties/:id", async (req, res) => {
     const property = await prisma.properties.delete({
       where: { id },
     });
-    await redis.del("properties:all");
+    await clearCache("properties:all");
     res.status(200).json({ message: "Property deleted", data: property });
   } catch (error) {
     if (error.code === "P2025") {
@@ -393,8 +424,8 @@ app.get("/init", async (req, res) => {
   }
 });
 
-// app.listen(PORT, () => {
-//   console.log(`this server is running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+  console.log(`this server is running on port ${PORT}`);
+});
 
 export default app;

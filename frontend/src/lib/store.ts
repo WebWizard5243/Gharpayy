@@ -8,9 +8,8 @@ import {
   STAGE_TO_BACKEND,
 } from "./types";
 
-const API_URL = window.location.hostname === "localhost"
-  ? "http://localhost:5001"
-  : "/api";
+const API_URL =
+  window.location.hostname === "localhost" ? "http://localhost:5001" : "/api";
 
 function mapLead(row: any): Lead {
   return {
@@ -154,6 +153,21 @@ export function needsFollowUp(lead: Lead): boolean {
     lead.stage !== "booked" &&
     lead.stage !== "lost"
   );
+}
+
+//PATCH /visits
+
+export async function updateVisits(id: number, outcome: string) {
+  const res = await fetch(`${API_URL}/visits/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ outcome }),
+  });
+  if (!res.ok) {
+    throw new Error("Failed to update visit outcome");
+  }
+  const json = await res.json();
+  return json.data;
 }
 
 // GET /agents
