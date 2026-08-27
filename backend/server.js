@@ -21,12 +21,17 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-let isRedisConnected = Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+let isRedisConnected = Boolean(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
+);
 
 // Quick check on startup so requests don't wait for DNS timeout
 if (isRedisConnected) {
   redis.get("ping").catch((err) => {
-    console.warn("Upstash Redis unreachable, falling back to database directly:", err.message);
+    console.warn(
+      "Upstash Redis unreachable, falling back to database directly:",
+      err.message,
+    );
     isRedisConnected = false;
   });
 }
@@ -51,7 +56,10 @@ async function cached(key, ttlseconds, queryFn) {
         return hit;
       }
     } catch (err) {
-      console.warn(`Redis get failed for ${key}, falling back to database:`, err.message);
+      console.warn(
+        `Redis get failed for ${key}, falling back to database:`,
+        err.message,
+      );
       isRedisConnected = false;
     }
   }
@@ -424,8 +432,8 @@ app.get("/init", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`this server is running on port ${PORT}`);
-});
+// app.listen(PORT, () => {
+//   console.log(`this server is running on port ${PORT}`);
+// });
 
 export default app;
