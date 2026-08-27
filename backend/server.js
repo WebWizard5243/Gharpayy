@@ -432,8 +432,8 @@ app.get("/init", async (req, res) => {
   }
 });
 
-// app.listen(PORT, () => {
-//   console.log(`this server is running on port ${PORT}`);
-// });
+app.listen(PORT, () => {
+  console.log(`this server is running on port ${PORT}`);
+});
 
 export default app;

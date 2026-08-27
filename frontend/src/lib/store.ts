@@ -9,7 +9,9 @@ import {
 } from "./types";
 
 const API_URL =
-  window.location.hostname === "localhost" ? "http://localhost:5001" : "/api";
+  window.location.hostname === "localhost"
+    ? "http://localhost:5001"
+    : "https://gharpayy-nine-beta.vercel.app/";
 
 function mapLead(row: any): Lead {
   return {
